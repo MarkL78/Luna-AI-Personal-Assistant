@@ -7,19 +7,20 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import os
 import time
-import playsound
+import pyttsx3
 import speech_recognition as sr
-from gtts import gTTS
+import pytz
 
-# If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
+DAYS = ["monday", "tuesday", " wednesday", "thursday", "friday","saturday", "sunday"]
+MONTHS = ["january", "feburary", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]
+DAY_EXTENTIONS = ["rd", "th", "st", "nd"]
 
 def speak(text):
-    tts = gTTS(text=text, Lang="en")
-    filename = "voice.mp3"
-    tts.save(filename)
-    playsound.playsound(filename)
-
+    engine = pyttsx3.init()
+    engine.say(text)
+    engine.runandwait()
+    #need to slow the voice down
 
 def get_audio():
     r = sr.Recognizer()
@@ -74,12 +75,16 @@ def authenticate_calendar():
     return service
 
 
-def upcoming_calendar_events(num, service):
+def upcoming_calendar_events(date, service):
     #calls the Calendar API
-    now = datetime.datetime.utcnow().isoformat() + 'Z' # 'Z' indicates UTC time
-    print('Getting the upcoming " + num + " events')
-    events_result = service.events().list(calendarId='primary', timeMin=now,
-                                        maxResults=10, singleEvents=True,
+    date = datetime.datetime.combine(date, datetime.datetime.min.time())
+    date = datetime.datetime.combine(date, datetime.datetime.max.time())
+    utc = pytz.UTC
+    date = date.astimezone(utc)
+    end_date = end_date.astimezone(utc)
+
+    events_result = service.events().list(calendarId='primary', timeMin=now.isoformat(),
+                                        singleEvents=True, timeMax=end_date.isoformat(),
                                         orderBy='startTime').execute()
     events = events_result.get('items', [])
 
@@ -90,5 +95,48 @@ def upcoming_calendar_events(num, service):
         start = event['start'].get('dateTime', event['start'].get('date'))
         print(start, event['summary'])
 
-service = authenticate_calendar()
-upcoming_calendar_events(5, service)
+
+def get_date(text):
+    text = text.lower()
+    today = dateTime.date.today()
+    if text.count("today") > 0:
+        return today
+
+    day = -1
+    day_of_week = -1
+    month = -1
+    year = today.year
+
+    for word in text.split():
+        if word in MONTHS:
+            month = MONTHS.index(word) + 1
+        elif word in DAYS:
+            day_of_week = DAYS.index(word)
+        elif word.isdigit():
+            day = int(word)
+        else:
+            if ext in DAY_EXTENTIONS:
+                included = word.find(ext)
+                if found > 0:
+                    try:
+                        day = int(word[:found])
+                    except:
+                        pass
+    if month < today.month() and month != -1:
+        year += 1 #can this be year++ or is that just Java
+
+    if day < today.day() and month == -1 and day != -1:
+        month += 1
+
+    if month == -1 and day == -1 and day_of_week != -1:
+        current_day = today.weekday()
+        dif  = current_day - day_of_week
+
+        if dif < 0:
+            dif += 7
+            if text.count("next") >= 1:
+                 dof += 7 #if it is past this tues day than this is 2 weeks out
+
+        return today + datetime.timedelta(dif)
+
+    return datetime.date(month=month, day=day, year=year)
